@@ -164,7 +164,7 @@ registerDoFuture()
 # Tweak the batchtools_slurm with the custom template and resources
 myslurm <- tweak(
   batchtools_slurm,
-  template = "batchtools.slurm.iid.3d.tmpl",
+  template = "batchtools.slurm.iid3d.tmpl",
   resources = resources_list
 )
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-#SBATCH --time=22:00:00
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem=240G
@@ -10,7 +10,7 @@
 #SBATCH --output=message/%x_%j-result.txt
 #SBATCH --error=message/%x_%j-error.txt
 #SBATCH --exclusive
-#SBATCH --account=def-cgenest
+#SBATCH --account=def-fouimet
 
 module load StdEnv/2023 r/4.3.1
-Rscript Wishart_density_estimation_iid.R
+Rscript simulations_iid_3d_parallel.R

@@ -123,31 +123,21 @@ invisible(
 path <- getwd()
 # setwd(path)
 
-################
-## Parameters ##
-################
-
-# Variables for the simulation
-nrep <- 1000L
-
-
 ##############################
 ## Parallelization on nodes ##
 ##############################
 
+# Variables for the simulation
+nrep <- 64L
+cores_per_node <- 64 # number of cores for each node in the super-computer
+
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "60:00:00",
+  walltime = "3:00:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
-
-
-# Variables for the simulation
-nrep <- 1000L
-cores_per_node <- 63 # number of cores for each node in the super-computer
-
 
 ###############################
 ## Main code (exact version) ##

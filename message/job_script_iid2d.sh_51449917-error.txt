@@ -1,0 +1,10 @@
+Loading required package: ksm
+
+Attaching package: ‘ksm’
+
+The following object is masked from ‘package:stats’:
+
+    rWishart
+
+Error in registerDoFuture() : could not find function "registerDoFuture"
+Execution halted

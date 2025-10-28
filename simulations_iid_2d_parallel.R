@@ -4,7 +4,13 @@
 # 2. evaluate the optimal bandwidth using 'ksm:::bandwidth_optim' using one of the five available methods @m
 # 3. Calculate the integrated square error
 
-require(ksm)
+require("cubature")           # adaptive multidimensional integration (e.g., Cuhre)
+require("doFuture")           # registers future-based backends for foreach (%dopar%)
+require("future.batchtools")  # runs futures via batchtools (Slurm templates/resources)
+require("ksm")                # SPD kernel density tools (kdens_symmat, integrate_spd, bandwidth_optim)
+require("parallel")           # base R parallelism (PSOCK clusters, detectCores)
+
+# Define the list of libraries to load on each cluster node
 
 libraries_to_load <- c(
   "cubature",
@@ -12,6 +18,20 @@ libraries_to_load <- c(
   "future.batchtools",
   "ksm",
   "parallel"
+)
+
+# Define the list of variables/functions to export to the worker nodes
+
+vars_to_export <- c(
+  "ISE",
+  "IAE",
+  "cores_per_node",
+  "libraries_to_load",
+  "path",
+  "resources_list",
+  "RR",
+  "setup_parallel_cluster",
+  "vars_to_export"
 )
 
 #' Integrated squared error of kernel density estimator for symmetric matrices
@@ -24,6 +44,7 @@ libraries_to_load <- c(
 #' @param kernel string, one of \code{Wishart}, \code{smlnorm} (log-Gaussian) or \code{smnorm} (Gaussian).
 #' @param return integrated squared error
 #' @param ... additional parameters, currently ignored
+
 ISE <- function(
   S,
   x,
@@ -56,6 +77,7 @@ ISE <- function(
 #' @param kernel string, one of \code{Wishart}, \code{smlnorm} (log-Gaussian) or \code{smnorm} (Gaussian).
 #' @param return integrated squared error
 #' @param ... additional parameters, currently ignored
+
 IAE <- function(
   S,
   x,
@@ -79,11 +101,6 @@ IAE <- function(
       ksm::simu_fdens(S, model = model, d = dim)
   )
 }
-vars_to_export <- c(
-  "ISE",
-  "IAE"
-  #TODO figure out what needs to be added here, beyond locally defined functions
-)
 
 # Sets up a parallel cluster, loads necessary libraries, and exports required variables globally
 

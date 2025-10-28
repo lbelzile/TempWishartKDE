@@ -6,6 +6,7 @@
 
 require("cubature")           # adaptive multidimensional integration (e.g., Cuhre)
 require("doFuture")           # registers future-based backends for foreach (%dopar%)
+require("fs")                 # cross-platform filesystem ops (paths, files, dirs)
 require("future.batchtools")  # runs futures via batchtools (Slurm templates/resources)
 require("ksm")                # SPD kernel density tools (kdens_symmat, integrate_spd, bandwidth_optim)
 require("parallel")           # base R parallelism (PSOCK clusters, detectCores)
@@ -15,6 +16,7 @@ require("parallel")           # base R parallelism (PSOCK clusters, detectCores)
 libraries_to_load <- c(
   "cubature",
   "doFuture",
+  "fs",
   "future.batchtools",
   "ksm",
   "parallel"

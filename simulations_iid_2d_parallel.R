@@ -48,6 +48,7 @@ models <- 1:6
 combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")
 criteria <- c("lscv", "lcv")
+RR <- 1:64
 
 #' Integrated squared error of kernel density estimator for symmetric matrices
 #'
@@ -328,3 +329,4 @@ raw_output_file <- file.path(path, "raw_ISE_iid_2d.csv")
 write.csv(raw_results, raw_output_file, row.names = FALSE)
 
 print("Raw results saved to raw_ISE_iid_2d.csv")
+

@@ -33,8 +33,21 @@ vars_to_export <- c(
   "resources_list",
   "RR",
   "setup_parallel_cluster",
-  "vars_to_export"
+  "vars_to_export",
+  "nobs",
+  "models",
+  "combo",
+  "kernels",
+  "criteria"
 )
+
+# Hyper-parameters
+
+nobs <- c(125L, 250L, 500L)
+models <- 1:6
+combo <- 1:5
+kernels <- c("smnorm", "smlnorm", "Wishart")
+criteria <- c("lscv", "lcv")
 
 #' Integrated squared error of kernel density estimator for symmetric matrices
 #'
@@ -187,7 +200,8 @@ raw_results <- data.frame(
   kernel = integer(),
   criterion = character(),
   logISE = numeric(),
-  bandwidth = numeric()
+  bandwidth = numeric(),
+  stringsAsFactors = FALSE
 )
 
 # Capture the start time
@@ -203,11 +217,7 @@ res <- foreach(
   {
     # Set a unique seed for each node (replication)
     set.seed(r)
-    nobs <- c(125L, 250L, 500L)
-    models <- 1:6
-    combo <- 1:5
-    kernels <- c("smnorm", "smlnorm", "Wishart")
-    criteria <- c("lscv", "lcv")
+
     # Set library paths within each worker node
     .libPaths("~/R/library")
 
@@ -217,13 +227,14 @@ res <- foreach(
       kernel = integer(),
       criterion = character(),
       logISE = numeric(),
-      bandwidth = numeric()
+      bandwidth = numeric(),
+      stringsAsFactors = FALSE
     )
 
     for (i in seq_along(nobs)) {
       for (j in seq_along(models)) {
         # set.seed(b + 2025 * i)
-        xs <- simu_rdens(n = nobs[i], model = models[j], d = 2L)
+        xs <- ksm::simu_rdens(n = nobs[i], model = models[j], d = 2L)
         for (k in seq_along(combo)) {
           band <- ksm::bandwidth_optim(
             x = xs,
@@ -238,7 +249,7 @@ res <- foreach(
                   x = xs,
                   kernel = kernels[k %% 3L + 1L],
                   bandwidth = band,
-                  model = j
+                  model = as.chatacter(j)
                 )
               },
               dim = 2L,
@@ -262,7 +273,7 @@ res <- foreach(
                   x = xs,
                   kernel = kernels[k %% 3L + 1L],
                   bandwidth = band,
-                  model = j
+                  model = as.character(j)
                 )
               },
               dim = 2L,

@@ -1,0 +1,15 @@
+#!/bin/sh
+#SBATCH --job-name=doFuture-1
+#SBATCH --time=00:05:00
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=2G
+#SBATCH -o log/%x_%j_%A_%a.out
+#SBATCH --mail-user=fred1515@hotmail.com
+#SBATCH --mail-type=ALL
+#SBATCH --output=message/%x_%j_%A_%a-result.txt
+#SBATCH --error=message/%x_%j_%A_%a-error.txt
+#SBATCH --exclusive
+#SBATCH --account=def-fouimet
+module load StdEnv/2023 r/4.3.1
+Rscript -e 'batchtools::doJobCollection("/home/fouimet/WishartKDE/TempWishartKDE/.future/20251030_222618-c6nhnm/doFuture-1_1613063396/jobs/jobf5dda8fc1566bf43367acca7e12f6ee6.rds")'

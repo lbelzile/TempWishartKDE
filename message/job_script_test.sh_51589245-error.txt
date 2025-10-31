@@ -1,0 +1,13 @@
+Loading required package: doFuture
+Loading required package: foreach
+Loading required package: future
+Loading required package: future.batchtools
+Loading required package: parallelly
+Loading required package: fs
+Loading required package: parallel
+Error: Log file '/home/fouimet/WishartKDE/TempWishartKDE/.future/20251030_222618-c6nhnm/doFuture-1_1613063396/logs/jobf5dda8fc1566bf43367acca7e12f6ee6.log' for job with id 1 not available
+Execution halted
+Error : Log file '/home/fouimet/WishartKDE/TempWishartKDE/.future/20251030_222618-c6nhnm/doFuture-4_1215496052/logs/job425ac14efe220c2d93ff54f2c48b7d2f.log' for job with id 1 not available
+Error : Log file '/home/fouimet/WishartKDE/TempWishartKDE/.future/20251030_222618-c6nhnm/doFuture-3_1136133308/logs/jobb3c65ac8071936547d24a13b346503c2.log' for job with id 1 not available
+Error : Log file '/home/fouimet/WishartKDE/TempWishartKDE/.future/20251030_222618-c6nhnm/doFuture-2_1161928099/logs/job517da1d49e7fa12e2e59f5a0e351387b.log' for job with id 1 not available
+Error : Log file '/home/fouimet/WishartKDE/TempWishartKDE/.future/20251030_222618-c6nhnm/doFuture-1_1613063396/logs/jobf5dda8fc1566bf43367acca7e12f6ee6.log' for job with id 1 not available

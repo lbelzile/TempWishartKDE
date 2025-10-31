@@ -1,0 +1,41 @@
+Driver .libPaths():
+[1] "/home/fouimet/R/x86_64-pc-linux-gnu-library/4.3"                                                        
+[2] "/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library"
+Driver sees ksm_lib_hint: '/home/fouimet/R/x86_64-pc-linux-gnu-library/4.3'
+  r    host r_version                                     R_LIBS_USER
+1 1 nc31214     4 3.1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3
+2 2 nc31214     4 3.1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3
+3 3 nc31215     4 3.1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3
+4 4 nc31214     4 3.1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3
+                                                                                                                                          libpaths_before
+1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+2 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+3 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+4 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+                                                                                                                                           libpaths_after
+1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+2 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+3 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+4 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3;/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/Compiler/gcccore/r/4.3.1/lib64/R/library
+  ksm_found_initial ksm_version_initial
+1              TRUE                 1.0
+2              TRUE                 1.0
+3              TRUE                 1.0
+4              TRUE                 1.0
+                                     ksm_path_initial ksm_found_after_hint
+1 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm                 TRUE
+2 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm                 TRUE
+3 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm                 TRUE
+4 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm                 TRUE
+  ksm_version_after_hint                                 ksm_path_after_hint
+1                    1.0 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm
+2                    1.0 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm
+3                    1.0 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm
+4                    1.0 /home/fouimet/R/x86_64-pc-linux-gnu-library/4.3/ksm
+                                                                                                                                                                                                                                                                               search_path
+1 .GlobalEnv | package:fs | package:parallel | package:future.batchtools | package:parallelly | package:doFuture | package:future | package:foreach | package:stats | package:graphics | package:grDevices | package:utils | package:datasets | package:methods | Autoloads | package:base
+2 .GlobalEnv | package:fs | package:parallel | package:future.batchtools | package:parallelly | package:doFuture | package:future | package:foreach | package:stats | package:graphics | package:grDevices | package:utils | package:datasets | package:methods | Autoloads | package:base
+3 .GlobalEnv | package:fs | package:parallel | package:future.batchtools | package:parallelly | package:doFuture | package:future | package:foreach | package:stats | package:graphics | package:grDevices | package:utils | package:datasets | package:methods | Autoloads | package:base
+4 .GlobalEnv | package:fs | package:parallel | package:future.batchtools | package:parallelly | package:doFuture | package:future | package:foreach | package:stats | package:graphics | package:grDevices | package:utils | package:datasets | package:methods | Autoloads | package:base
+Elapsed time (min): 0.17 
+Wrote: /home/fouimet/WishartKDE/TempWishartKDE/ksm_worker_diag.csv

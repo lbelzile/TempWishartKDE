@@ -11,6 +11,10 @@ require("future.batchtools")  # runs futures via batchtools (Slurm templates/res
 require("ksm")                # SPD kernel density tools (kdens_symmat, integrate_spd, bandwidth_optim)
 require("parallel")           # base R parallelism (PSOCK clusters, detectCores)
 
+# Where 'ksm' is installed in *this* account (shared across nodes)
+ksm_lib <- dirname(system.file(package = "ksm"))
+if (!nzchar(ksm_lib)) stop("Package 'ksm' is not installed in this R library for R ", getRversion())
+
 # Define the list of libraries to load on each cluster node
 
 libraries_to_load <- c(
@@ -18,7 +22,7 @@ libraries_to_load <- c(
   "doFuture",
   "fs",
   "future.batchtools",
-  "ksm",
+  #"ksm",
   "parallel"
 )
 
@@ -38,85 +42,9 @@ vars_to_export <- c(
   "models",
   "combo",
   "kernels",
-  "criteria"
+  "criteria",
+  "ksm_lib"
 )
-
-# Hyper-parameters
-
-nobs <- c(125L, 250L, 500L)
-models <- 1:6
-combo <- 1:5
-kernels <- c("smnorm", "smlnorm", "Wishart")
-criteria <- c("lscv", "lcv")
-RR <- 1:64
-
-#' Integrated squared error of kernel density estimator for symmetric matrices
-#'
-#' Given a sample \code{x} from a target density, and the optimal bandwidth, compute the integrated squared error via numerical integration.
-#' @param S matrix at which to evaluate
-#' @param x sample of symmetric matrix observations from which to build the kernel density kernel
-#' @param bandwidth double for the bandwidth of the kernel
-#' @param model number of the target function from which points are drawn.
-#' @param kernel string, one of \code{Wishart}, \code{smlnorm} (log-Gaussian) or \code{smnorm} (Gaussian).
-#' @param return integrated squared error
-#' @param ... additional parameters, currently ignored
-
-ISE <- function(
-  S,
-  x,
-  bandwidth,
-  model = 1:6,
-  kernel = c("Wishart", "smlnorm", "smnorm"),
-  ...
-) {
-  model <- match.arg(model, choices = 1:6)
-  kernel <- match.arg(kernel)
-  dim <- ncol(x)
-  # Compute the squared difference between the kernel and the target density
-  (ksm::kdens_symmat(
-    x = S,
-    xs = x,
-    b = bandwidth,
-    kernel = kernel,
-    log = FALSE
-  ) -
-    ksm::simu_fdens(S, model = model, d = dim))^2
-}
-
-#' Integrated absolute error of kernel density estimator for symmetric matrices
-#'
-#' Given a sample \code{x} from a target density, and the optimal bandwidth, compute the integrated squared error via numerical integration.
-#' @param S matrix at which to evaluate
-#' @param x sample of symmetric matrix observations from which to build the kernel density kernel
-#' @param bandwidth double for the bandwidth of the kernel
-#' @param model number of the target function from which points are drawn.
-#' @param kernel string, one of \code{Wishart}, \code{smlnorm} (log-Gaussian) or \code{smnorm} (Gaussian).
-#' @param return integrated squared error
-#' @param ... additional parameters, currently ignored
-
-IAE <- function(
-  S,
-  x,
-  bandwidth,
-  model = 1:6,
-  kernel = c("Wishart", "smlnorm", "smnorm"),
-  ...
-) {
-  model <- match.arg(model, choices = 1:6)
-  kernel <- match.arg(kernel)
-  dim <- ncol(x)
-  # Compute the squared difference between the kernel and the target density
-  abs(
-    ksm::kdens_symmat(
-      x = S,
-      xs = x,
-      b = bandwidth,
-      kernel = kernel,
-      log = FALSE
-    ) -
-      ksm::simu_fdens(S, model = model, d = dim)
-  )
-}
 
 # Sets up a parallel cluster, loads necessary libraries, and exports required variables globally
 
@@ -149,6 +77,85 @@ invisible(
   )
 )
 
+# Hyper-parameters
+
+nobs <- c(125L, 250L, 500L)
+models <- 1:6
+combo <- 1:5
+kernels <- c("smnorm", "smlnorm", "Wishart")
+criteria <- c("lscv", "lcv")
+RR <- 1:2
+
+#' Integrated squared error of kernel density estimator for symmetric matrices
+#'
+#' Given a sample \code{x} from a target density, and the optimal bandwidth, compute the integrated squared error via numerical integration.
+#' @param S matrix at which to evaluate
+#' @param x sample of symmetric matrix observations from which to build the kernel density kernel
+#' @param bandwidth double for the bandwidth of the kernel
+#' @param model number of the target function from which points are drawn.
+#' @param kernel string, one of \code{Wishart}, \code{smlnorm} (log-Gaussian) or \code{smnorm} (Gaussian).
+#' @param return integrated squared error
+#' @param ... additional parameters, currently ignored
+
+ISE <- function(
+  S,
+  x,
+  bandwidth,
+  model = 1:6,
+  kernel = c("Wishart", "smlnorm", "smnorm"),
+  ...
+) {
+  #model <- match.arg(model, choices = 1:6)
+  model <- as.integer(match.arg(as.character(model), choices = as.character(1:6)))
+  kernel <- match.arg(kernel)
+  dim <- ncol(x)
+  # Compute the squared difference between the kernel and the target density
+  (ksm::kdens_symmat(
+    x = S,
+    xs = x,
+    b = bandwidth,
+    kernel = kernel,
+    log = FALSE
+  ) -
+    ksm::simu_fdens(S, model = model, d = dim))^2
+}
+
+#' Integrated absolute error of kernel density estimator for symmetric matrices
+#'
+#' Given a sample \code{x} from a target density, and the optimal bandwidth, compute the integrated squared error via numerical integration.
+#' @param S matrix at which to evaluate
+#' @param x sample of symmetric matrix observations from which to build the kernel density kernel
+#' @param bandwidth double for the bandwidth of the kernel
+#' @param model number of the target function from which points are drawn.
+#' @param kernel string, one of \code{Wishart}, \code{smlnorm} (log-Gaussian) or \code{smnorm} (Gaussian).
+#' @param return integrated squared error
+#' @param ... additional parameters, currently ignored
+
+IAE <- function(
+  S,
+  x,
+  bandwidth,
+  model = 1:6,
+  kernel = c("Wishart", "smlnorm", "smnorm"),
+  ...
+) {
+  #model <- match.arg(model, choices = 1:6)
+  model <- as.integer(match.arg(as.character(model), choices = as.character(1:6)))
+  kernel <- match.arg(kernel)
+  dim <- ncol(x)
+  # Compute the absolute difference between the kernel and the target density
+  abs(
+    ksm::kdens_symmat(
+      x = S,
+      xs = x,
+      b = bandwidth,
+      kernel = kernel,
+      log = FALSE
+    ) -
+      ksm::simu_fdens(S, model = model, d = dim)
+  )
+}
+
 ##################
 ## Set the path ##
 ##################
@@ -160,8 +167,6 @@ path <- getwd()
 ## Parallelization on nodes ##
 ##############################
 
-# Variables for the simulation
-nrep <- 64L
 cores_per_node <- 64 # number of cores for each node in the super-computer
 
 resources_list <- list(
@@ -250,7 +255,7 @@ res <- foreach(
                   x = xs,
                   kernel = kernels[k %% 3L + 1L],
                   bandwidth = band,
-                  model = as.chatacter(j)
+                  model = j
                 )
               },
               dim = 2L,
@@ -274,7 +279,7 @@ res <- foreach(
                   x = xs,
                   kernel = kernels[k %% 3L + 1L],
                   bandwidth = band,
-                  model = as.character(j)
+                  model = j
                 )
               },
               dim = 2L,

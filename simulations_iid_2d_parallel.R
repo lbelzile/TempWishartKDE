@@ -18,47 +18,44 @@ libraries_to_load <- c(
   "doFuture",
   "fs",
   "future.batchtools",
-  #"ksm",
   "parallel"
 )
 
 # Define the list of variables/functions to export to the worker nodes
 
 vars_to_export <- c(
+  "combo",
+  "cores_per_node",
+  "criteria",
   "ISE",
   "IAE",
-  "cores_per_node",
+  "kernels",
   "libraries_to_load",
+  "models",
+  "nobs",
   "path",
   "resources_list",
   "RR",
-  "setup_parallel_cluster",
-  "vars_to_export",
-  "nobs",
-  "models",
-  "combo",
-  "kernels",
-  "criteria",
-  "ksm_lib"
+  "setup_parallel_cluster"
 )
 
 # Sets up a parallel cluster, loads necessary libraries, and exports required variables globally
 
 setup_parallel_cluster <- function() {
-  num_cores <<- detectCores() - 1
+  num_cores <<- detectCores()
   cl <<- makeCluster(num_cores)
-
+  
   # Export the list of libraries to the worker nodes
   clusterExport(cl, varlist = "libraries_to_load")
-
+  
   # Load necessary libraries on each cluster node
   invisible(clusterEvalQ(cl, {
     lapply(libraries_to_load, library, character.only = TRUE)
   }))
-
+  
   # Export all necessary objects, functions, and parameters to the worker nodes
   clusterExport(cl, varlist = vars_to_export)
-
+  
   return(cl) # Return the cluster object
 }
 
@@ -80,7 +77,7 @@ models <- 1:1
 combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")
 criteria <- c("lscv", "lcv")
-RR <- 1:2
+RR <- 1:128 # replications
 
 #' Integrated squared error of kernel density estimator for symmetric matrices
 #'
@@ -94,12 +91,12 @@ RR <- 1:2
 #' @param ... additional parameters, currently ignored
 
 ISE <- function(
-  S,
-  x,
-  bandwidth,
-  model = 1:6,
-  kernel = c("Wishart", "smlnorm", "smnorm"),
-  ...
+    S,
+    x,
+    bandwidth,
+    model = 1:6,
+    kernel = c("Wishart", "smlnorm", "smnorm"),
+    ...
 ) {
   #model <- match.arg(model, choices = 1:6)
   model <- as.integer(match.arg(as.character(model), choices = as.character(1:6)))
@@ -113,7 +110,7 @@ ISE <- function(
     kernel = kernel,
     log = FALSE
   ) -
-    ksm::simu_fdens(S, model = model, d = dim))^2
+      ksm::simu_fdens(S, model = model, d = dim))^2
 }
 
 #' Integrated absolute error of kernel density estimator for symmetric matrices
@@ -128,12 +125,12 @@ ISE <- function(
 #' @param ... additional parameters, currently ignored
 
 IAE <- function(
-  S,
-  x,
-  bandwidth,
-  model = 1:6,
-  kernel = c("Wishart", "smlnorm", "smnorm"),
-  ...
+    S,
+    x,
+    bandwidth,
+    model = 1:6,
+    kernel = c("Wishart", "smlnorm", "smnorm"),
+    ...
 ) {
   #model <- match.arg(model, choices = 1:6)
   model <- as.integer(match.arg(as.character(model), choices = as.character(1:6)))
@@ -168,7 +165,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "14:00:00",
+  walltime = "15:00:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
@@ -209,107 +206,133 @@ raw_results <- data.frame(
 # Capture the start time
 start_time <- Sys.time()
 
-# Parallel loop over the replications (RR), each node processes one set of RR values
+# Split RR into node-sized blocks
+RR_blocks <- split(RR, ceiling(seq_along(RR) / cores_per_node))
+
+# For each over blocks (one Slurm job per block)
 res <- foreach(
-  r = RR,
+  block = RR_blocks,
   .combine = "rbind",
   .export = vars_to_export,
   .packages = libraries_to_load
-) %dopar%
-  {
-    # Set a unique seed for each node (replication)
+) %dopar% {
+  
+  # spin up a per-node PSOCK cluster using your existing helper
+  cl <- setup_parallel_cluster()
+  
+  # prepare (i,j) grid once
+  combinations <- expand.grid(
+    i = seq_along(nobs),
+    j = seq_along(models),
+    KEEP.OUT.ATTRS = FALSE,
+    stringsAsFactors = FALSE
+  )
+  # make the grid visible on workers (minimal)
+  parallel::clusterExport(cl, varlist = "combinations", envir = environment())
+  
+  block_results <- data.frame(
+    nobs = integer(),
+    model = integer(),
+    kernel = character(),
+    criterion = character(),
+    logISE = numeric(),
+    logIAE = numeric(),
+    bandwidth = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # each r in this block runs the (i,j) loop in parallel across the node's cores
+  for (r in block) {
+    # keep your original seeding line
     set.seed(r)
-
-    # Set library paths within each worker node
-    .libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))
-
-    local_raw_results <- data.frame(
-      nobs = integer(),
-      model = integer(),
-      kernel = integer(),
-      criterion = character(),
-      logISE = numeric(),
-      bandwidth = numeric(),
-      stringsAsFactors = FALSE
-    )
-
-    for (i in seq_along(nobs)) {
-      for (j in seq_along(models)) {
-        # set.seed(b + 2025 * i)
-        xs <- ksm::simu_rdens(n = nobs[i], model = models[j], d = 2L)
-        for (k in seq_along(combo)) {
-          band <- ksm::bandwidth_optim(
-            x = xs,
-            criterion = criteria[k %% 2L + 1L],
-            kernel = kernels[k %% 3L + 1L]
-          )
-          ISE_int <- try(
-            ksm::integrate_spd(
-              f = function(S) {
-                ISE(
-                  S,
-                  x = xs,
-                  kernel = kernels[k %% 3L + 1L],
-                  bandwidth = band,
-                  model = j
-                )
-              },
-              dim = 2L,
-              method = "cuhre",
-              lb = 1e-8,
-              ub = Inf,
-              neval = 1e7L
-            ),
-            silent = TRUE
-          )
-          if (!inherits(ISE_int, "try-error")) {
-            log_ISE <- ISE_int$integral
-          } else {
-            log_ISE <- NA
-          }
-          IAE_int <- try(
-            ksm::integrate_spd(
-              f = function(S) {
-                IAE(
-                  S,
-                  x = xs,
-                  kernel = kernels[k %% 3L + 1L],
-                  bandwidth = band,
-                  model = j
-                )
-              },
-              dim = 2L,
-              method = "cuhre",
-              lb = 1e-8,
-              ub = Inf,
-              neval = 1e7L
-            ),
-            silent = TRUE
-          )
-          if (!inherits(IAE_int, "try-error")) {
-            log_IAE <- IAE_int$integral
-          } else {
-            log_IAE <- NA
-          }
-          local_raw_results <- rbind(
-            local_raw_results,
-            data.frame(
-              nobs = nobs[i],
-              model = models[j],
-              kernel = kernels[k %% 3L + 1L],
-              criterion = criteria[k %% 2L + 1L],
-              logISE = log_ISE,
-              logIAE = log_IAE,
-              bandwidth = band
-            )
-          )
+    # give workers independent substreams for this replication (minimal + safe)
+    try(parallel::clusterSetRNGStream(cl, iseed = r), silent = TRUE)
+    
+    # Parallelize the (i,j) loop on this node
+    ij_list <- parallel::parLapply(cl, X = seq_len(nrow(combinations)), fun = function(idx) {
+      i <- combinations$i[[idx]]
+      j <- combinations$j[[idx]]
+      
+      xs <- ksm::simu_rdens(n = nobs[i], model = models[j], d = 2L)
+      
+      local_rows <- vector("list", length(combo))
+      for (k in seq_along(combo)) {
+        band <- ksm::bandwidth_optim(
+          x = xs,
+          criterion = criteria[k %% 2L + 1L],
+          kernel = kernels[k %% 3L + 1L]
+        )
+        ISE_int <- try(
+          ksm::integrate_spd(
+            f = function(S) {
+              ISE(
+                S,
+                x = xs,
+                kernel = kernels[k %% 3L + 1L],
+                bandwidth = band,
+                model = j
+              )
+            },
+            dim = 2L,
+            method = "cuhre",
+            lb = 1e-8,
+            ub = Inf,
+            neval = 1e7L
+          ),
+          silent = TRUE
+        )
+        if (!inherits(ISE_int, "try-error")) {
+          log_ISE <- ISE_int$integral
+        } else {
+          log_ISE <- NA
         }
+        IAE_int <- try(
+          ksm::integrate_spd(
+            f = function(S) {
+              IAE(
+                S,
+                x = xs,
+                kernel = kernels[k %% 3L + 1L],
+                bandwidth = band,
+                model = j
+              )
+            },
+            dim = 2L,
+            method = "cuhre",
+            lb = 1e-8,
+            ub = Inf,
+            neval = 1e7L
+          ),
+          silent = TRUE
+        )
+        if (!inherits(IAE_int, "try-error")) {
+          log_IAE <- IAE_int$integral
+        } else {
+          log_IAE <- NA
+        }
+        local_rows[[k]] <- data.frame(
+          nobs = nobs[i],
+          model = models[j],
+          kernel = kernels[k %% 3L + 1L],
+          criterion = criteria[k %% 2L + 1L],
+          logISE = log_ISE,
+          logIAE = log_IAE,
+          bandwidth = band,
+          stringsAsFactors = FALSE
+        )
       }
-    }
-
-    # Return the raw results for this replication
-    return(local_raw_results)
+      do.call(rbind, local_rows)
+    })
+    
+    block_results <- rbind(block_results, do.call(rbind, ij_list))
   }
+  
+  # tear down the per-node cluster
+  try(parallel::stopCluster(cl), silent = TRUE)
+  
+  # return results for this block
+  block_results
+}
 
 # Combine results from all nodes
 raw_results <- res
@@ -330,4 +353,56 @@ raw_output_file <- file.path(path, "raw_ISE_iid_2d.csv")
 write.csv(raw_results, raw_output_file, row.names = FALSE)
 
 print("Raw results saved to raw_ISE_iid_2d.csv")
+
+#########################
+## Process the results ##
+#########################
+
+# Build a summary table by (nobs, model, kernel, criterion)
+
+# Guard against accidental factor coercion
+raw_results$kernel    <- as.character(raw_results$kernel)
+raw_results$criterion <- as.character(raw_results$criterion)
+
+# Split by grouping keys
+.grp <- interaction(raw_results$nobs, raw_results$model,
+                    raw_results$kernel, raw_results$criterion,
+                    drop = TRUE)
+
+summ_list <- lapply(split(raw_results, .grp), function(df) {
+  data.frame(
+    nobs      = df$nobs[1],
+    model     = df$model[1],
+    kernel    = df$kernel[1],
+    criterion = df$criterion[1],
+    # ISE stats
+    mean_ISE   = mean(df$logISE, na.rm = TRUE),
+    sd_ISE     = sd(df$logISE, na.rm = TRUE),
+    median_ISE = median(df$logISE, na.rm = TRUE),
+    IQR_ISE    = IQR(df$logISE, na.rm = TRUE),
+    # IAE stats
+    mean_IAE   = mean(df$logIAE, na.rm = TRUE),
+    sd_IAE     = sd(df$logIAE, na.rm = TRUE),
+    median_IAE = median(df$logIAE, na.rm = TRUE),
+    IQR_IAE    = IQR(df$logIAE, na.rm = TRUE),
+    # Bandwidth stats (useful to see selection variability)
+    mean_bandwidth   = mean(df$bandwidth, na.rm = TRUE),
+    sd_bandwidth     = sd(df$bandwidth, na.rm = TRUE),
+    median_bandwidth = median(df$bandwidth, na.rm = TRUE),
+    IQR_bandwidth    = IQR(df$bandwidth, na.rm = TRUE),
+    # Count of successful runs (non-NA ISE)
+    n_eff_ise = sum(!is.na(df$logISE)),
+    n_eff_iae = sum(!is.na(df$logIAE)),
+    stringsAsFactors = FALSE
+  )
+})
+
+summary_results <- do.call(rbind, summ_list)
+row.names(summary_results) <- NULL
+
+# Save the summary to CSV next to the raw file
+summary_output_file <- file.path(path, "summary_iid_2d.csv")
+write.csv(summary_results, summary_output_file, row.names = FALSE)
+
+print("Summary results saved to summary_iid_2d.csv")
 

@@ -11,10 +11,6 @@ require("future.batchtools")  # runs futures via batchtools (Slurm templates/res
 require("ksm")                # SPD kernel density tools (kdens_symmat, integrate_spd, bandwidth_optim)
 require("parallel")           # base R parallelism (PSOCK clusters, detectCores)
 
-# Where 'ksm' is installed in *this* account (shared across nodes)
-ksm_lib <- dirname(system.file(package = "ksm"))
-if (!nzchar(ksm_lib)) stop("Package 'ksm' is not installed in this R library for R ", getRversion())
-
 # Define the list of libraries to load on each cluster node
 
 libraries_to_load <- c(
@@ -79,8 +75,8 @@ invisible(
 
 # Hyper-parameters
 
-nobs <- c(125L, 250L, 500L)
-models <- 1:6
+nobs <- c(125L)
+models <- 1:1
 combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")
 criteria <- c("lscv", "lcv")
@@ -172,7 +168,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "3:00:00",
+  walltime = "14:00:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
@@ -181,7 +177,7 @@ resources_list <- list(
 ## Main code (exact version) ##
 ###############################
 
-.libPaths("~/R/library")
+.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))
 
 # Disable the check for random number generation misuse in doFuture
 options(doFuture.rng.onMisuse = "ignore")
@@ -225,7 +221,7 @@ res <- foreach(
     set.seed(r)
 
     # Set library paths within each worker node
-    .libPaths("~/R/library")
+    .libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))
 
     local_raw_results <- data.frame(
       nobs = integer(),

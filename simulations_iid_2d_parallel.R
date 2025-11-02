@@ -236,7 +236,7 @@ res <- foreach(
     kernel = character(),
     criterion = character(),
     logISE = numeric(),
-    logIAE = numeric(),
+    # logIAE = numeric(),
     bandwidth = numeric(),
     stringsAsFactors = FALSE
   )
@@ -286,37 +286,37 @@ res <- foreach(
         } else {
           log_ISE <- NA
         }
-        IAE_int <- try(
-          ksm::integrate_spd(
-            f = function(S) {
-              IAE(
-                S,
-                x = xs,
-                kernel = kernels[k %% 3L + 1L],
-                bandwidth = band,
-                model = j
-              )
-            },
-            dim = 2L,
-            method = "cuhre",
-            lb = 1e-8,
-            ub = Inf,
-            neval = 1e7L
-          ),
-          silent = TRUE
-        )
-        if (!inherits(IAE_int, "try-error")) {
-          log_IAE <- IAE_int$integral
-        } else {
-          log_IAE <- NA
-        }
+        # IAE_int <- try(
+        #   ksm::integrate_spd(
+        #     f = function(S) {
+        #       IAE(
+        #         S,
+        #         x = xs,
+        #         kernel = kernels[k %% 3L + 1L],
+        #         bandwidth = band,
+        #         model = j
+        #       )
+        #     },
+        #     dim = 2L,
+        #     method = "cuhre",
+        #     lb = 1e-8,
+        #     ub = Inf,
+        #     neval = 1e7L
+        #   ),
+        #   silent = TRUE
+        # )
+        # if (!inherits(IAE_int, "try-error")) {
+        #   log_IAE <- IAE_int$integral
+        # } else {
+        #   log_IAE <- NA
+        # }
         local_rows[[k]] <- data.frame(
           nobs = nobs[i],
           model = models[j],
           kernel = kernels[k %% 3L + 1L],
           criterion = criteria[k %% 2L + 1L],
           logISE = log_ISE,
-          logIAE = log_IAE,
+          # logIAE = log_IAE,
           bandwidth = band,
           stringsAsFactors = FALSE
         )
@@ -380,11 +380,11 @@ summ_list <- lapply(split(raw_results, .grp), function(df) {
     sd_ISE     = sd(df$logISE, na.rm = TRUE),
     median_ISE = median(df$logISE, na.rm = TRUE),
     IQR_ISE    = IQR(df$logISE, na.rm = TRUE),
-    # IAE stats
-    mean_IAE   = mean(df$logIAE, na.rm = TRUE),
-    sd_IAE     = sd(df$logIAE, na.rm = TRUE),
-    median_IAE = median(df$logIAE, na.rm = TRUE),
-    IQR_IAE    = IQR(df$logIAE, na.rm = TRUE),
+    # # IAE stats
+    # mean_IAE   = mean(df$logIAE, na.rm = TRUE),
+    # sd_IAE     = sd(df$logIAE, na.rm = TRUE),
+    # median_IAE = median(df$logIAE, na.rm = TRUE),
+    # IQR_IAE    = IQR(df$logIAE, na.rm = TRUE),
     # Bandwidth stats (useful to see selection variability)
     mean_bandwidth   = mean(df$bandwidth, na.rm = TRUE),
     sd_bandwidth     = sd(df$bandwidth, na.rm = TRUE),
@@ -392,7 +392,7 @@ summ_list <- lapply(split(raw_results, .grp), function(df) {
     IQR_bandwidth    = IQR(df$bandwidth, na.rm = TRUE),
     # Count of successful runs (non-NA ISE)
     n_eff_ise = sum(!is.na(df$logISE)),
-    n_eff_iae = sum(!is.na(df$logIAE)),
+    # n_eff_iae = sum(!is.na(df$logIAE)),
     stringsAsFactors = FALSE
   )
 })

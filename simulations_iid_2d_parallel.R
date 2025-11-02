@@ -72,8 +72,8 @@ invisible(
 
 # Hyper-parameters
 
-nobs <- c(125L)
-models <- 1:1
+nobs <- c(125L, 250L, 500L)
+models <- 1:6
 combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")
 criteria <- c("lscv", "lcv")
@@ -165,7 +165,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "15:00:00",
+  walltime = "16:00:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )

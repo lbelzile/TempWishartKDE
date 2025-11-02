@@ -1,0 +1,2 @@
+"nobs","model","kernel","criterion","mean_ISE","sd_ISE","median_ISE","IQR_ISE","mean_bandwidth","sd_bandwidth","median_bandwidth","IQR_bandwidth","n_eff_ise"
+125,1,"smlnorm","lcv",0.00297746163751885,0.00192828792943764,0.00248991668530502,0.00160969854061954,0.257390184000575,0.0464588602581311,0.251874457301088,0.0499970764689807,128

@@ -199,6 +199,7 @@ raw_results <- data.frame(
   kernel = integer(),
   criterion = character(),
   logISE = numeric(),
+  # logIAE = numeric(),
   bandwidth = numeric(),
   stringsAsFactors = FALSE
 )
@@ -241,15 +242,12 @@ res <- foreach(
     stringsAsFactors = FALSE
   )
   
-  # each r in this block runs the (i,j) loop in parallel across the node's cores
-  for (r in block) {
-    # keep your original seeding line
-    set.seed(r)
-    # give workers independent substreams for this replication (minimal + safe)
-    try(parallel::clusterSetRNGStream(cl, iseed = r), silent = TRUE)
+  # each r in this block runs in parallel across the node's cores; (i,j) loop runs inside each worker
+  r_list <- parallel::parLapply(cl, X = block, fun = function(r_local) {
+    set.seed(r_local)
     
-    # Parallelize the (i,j) loop on this node
-    ij_list <- parallel::parLapply(cl, X = seq_len(nrow(combinations)), fun = function(idx) {
+    out_rows_all <- vector("list", nrow(combinations))
+    for (idx in seq_len(nrow(combinations))) {
       i <- combinations$i[[idx]]
       j <- combinations$j[[idx]]
       
@@ -321,11 +319,13 @@ res <- foreach(
           stringsAsFactors = FALSE
         )
       }
-      do.call(rbind, local_rows)
-    })
+      out_rows_all[[idx]] <- do.call(rbind, local_rows)
+    }
     
-    block_results <- rbind(block_results, do.call(rbind, ij_list))
-  }
+    do.call(rbind, out_rows_all)
+  })
+  
+  block_results <- rbind(block_results, do.call(rbind, r_list))
   
   # tear down the per-node cluster
   try(parallel::stopCluster(cl), silent = TRUE)

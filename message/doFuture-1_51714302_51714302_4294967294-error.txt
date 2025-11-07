@@ -2,3 +2,4 @@ Loading required package: doFuture
 Loading required package: foreach
 Loading required package: future
 Loading required package: parallel
+slurmstepd: error: *** JOB 51714302 ON nc20224 CANCELLED AT 2025-11-03T13:56:35 ***

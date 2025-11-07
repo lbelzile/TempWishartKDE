@@ -14,3 +14,4 @@ The following object is masked from ‘package:stats’:
     rWishart
 
 Loading required package: parallel
+slurmstepd: error: *** JOB 51714298 ON nc30319 CANCELLED AT 2025-11-03T13:54:30 DUE TO TIME LIMIT ***

@@ -34,9 +34,11 @@ vars_to_export <- c(
   "models",
   "nobs",
   "path",
+  "replication",
   "resources_list",
   "RR",
-  "setup_parallel_cluster"
+  "setup_parallel_cluster",
+  "time_min"
 )
 
 # Sets up a parallel cluster, loads necessary libraries, and exports required variables globally
@@ -72,9 +74,9 @@ invisible(
 
 # Hyper-parameters
 
-nobs <- c(125L, 250L, 500L)
-models <- 1:6
-combo <- 1:5
+nobs <- c(250L)
+models <- 1:1
+combo <- 1:1
 kernels <- c("smnorm", "smlnorm", "Wishart")
 criteria <- c("lscv", "lcv")
 RR <- 1:128 # replications
@@ -165,7 +167,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "16:00:00",
+  walltime = "1:00:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
@@ -194,13 +196,16 @@ plan(list(myslurm, multisession))
 
 # Create empty data frames to store the results
 raw_results <- data.frame(
+  replication = integer(),
   nobs = integer(),
   model = integer(),
+  combo = integer(),
   kernel = integer(),
   criterion = character(),
   logISE = numeric(),
   # logIAE = numeric(),
   bandwidth = numeric(),
+  time_min = numeric(),
   stringsAsFactors = FALSE
 )
 
@@ -232,13 +237,16 @@ res <- foreach(
   parallel::clusterExport(cl, varlist = "combinations", envir = environment())
   
   block_results <- data.frame(
+    replication = integer(),
     nobs = integer(),
     model = integer(),
+    combo = integer(),
     kernel = character(),
     criterion = character(),
     logISE = numeric(),
     # logIAE = numeric(),
     bandwidth = numeric(),
+    time_min = numeric(),
     stringsAsFactors = FALSE
   )
   
@@ -254,7 +262,9 @@ res <- foreach(
       xs <- ksm::simu_rdens(n = nobs[i], model = models[j], d = 2L)
       
       local_rows <- vector("list", length(combo))
-      for (k in seq_along(combo)) {
+      for (k in combo) {
+	t0 <- Sys.time() # <-- start timing
+
         band <- ksm::bandwidth_optim(
           x = xs,
           criterion = criteria[k %% 2L + 1L],
@@ -308,14 +318,20 @@ res <- foreach(
         # } else {
         #   log_IAE <- NA
         # }
+
+	elapsed_min <- as.numeric(difftime(Sys.time(), t0, units = "mins")) # <-- stop timing
+
         local_rows[[k]] <- data.frame(
+	  replication = r_local,
           nobs = nobs[i],
           model = models[j],
+	  combo = combo[k],
           kernel = kernels[k %% 3L + 1L],
           criterion = criteria[k %% 2L + 1L],
           logISE = log_ISE,
           # logIAE = log_IAE,
           bandwidth = band,
+	  time_min = elapsed_min,
           stringsAsFactors = FALSE
         )
       }

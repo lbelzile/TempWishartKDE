@@ -74,9 +74,9 @@ invisible(
 
 # Hyper-parameters
 
-nobs <- c(250L)
-models <- 1:1
-combo <- 1:1
+nobs <- c(125L, 250L, 500L)
+models <- 1:6
+combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")
 criteria <- c("lscv", "lcv")
 RR <- 1:128 # replications
@@ -167,7 +167,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "1:00:00",
+  walltime = "48:00:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
@@ -282,8 +282,8 @@ res <- foreach(
               )
             },
             dim = 2L,
-            method = "cuhre",
-            lb = 1e-8,
+            method = "hcubature",
+            lb = 0,
             ub = Inf,
             neval = 1e7L
           ),
@@ -401,13 +401,14 @@ summ_list <- lapply(split(raw_results, .grp), function(df) {
     # sd_IAE     = sd(df$logIAE, na.rm = TRUE),
     # median_IAE = median(df$logIAE, na.rm = TRUE),
     # IQR_IAE    = IQR(df$logIAE, na.rm = TRUE),
-    # Bandwidth stats (useful to see selection variability)
-    mean_bandwidth   = mean(df$bandwidth, na.rm = TRUE),
-    sd_bandwidth     = sd(df$bandwidth, na.rm = TRUE),
-    median_bandwidth = median(df$bandwidth, na.rm = TRUE),
-    IQR_bandwidth    = IQR(df$bandwidth, na.rm = TRUE),
+    mean_time_min = mean(df$time_min, na.rm = TRUE),
+    # # Bandwidth stats (useful to see selection variability)
+    # mean_bandwidth   = mean(df$bandwidth, na.rm = TRUE),
+    # sd_bandwidth     = sd(df$bandwidth, na.rm = TRUE),
+    # median_bandwidth = median(df$bandwidth, na.rm = TRUE),
+    # IQR_bandwidth    = IQR(df$bandwidth, na.rm = TRUE),
     # Count of successful runs (non-NA ISE)
-    n_eff_ise = sum(!is.na(df$logISE)),
+    # n_eff_ise = sum(!is.na(df$logISE)),
     # n_eff_iae = sum(!is.na(df$logIAE)),
     stringsAsFactors = FALSE
   )

@@ -74,7 +74,7 @@ invisible(
 
 # Hyper-parameters
 
-nobs <- c(125L)
+nobs <- c(250L)
 models <- 1:6
 combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")

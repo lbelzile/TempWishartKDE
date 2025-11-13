@@ -1,3 +1,0 @@
-Loading required package: doFuture
-Loading required package: foreach
-Loading required package: future

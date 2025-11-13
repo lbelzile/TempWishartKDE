@@ -1,3 +1,0 @@
-Error in loadNamespace(x) : there is no package called ‘batchtools’
-Calls: loadNamespace -> withRestarts -> withOneRestart -> doWithOneRestart
-Execution halted

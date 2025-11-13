@@ -83,12 +83,13 @@ simu_rWAR <- function(
   n,
   Mmod = c("M1", "M2", "M3"),
   Smod = c("S1", "S2", "S3"),
-  K = 1L
+  K = 2L
 ) {
   Mmod <- match.arg(Mmod)
   Smod <- match.arg(Smod)
   n <- as.integer(n)
-  stopifnot(n >= 1)
+  K <- as.integer(K)
+  stopifnot(n >= 1, K >= 2) # otherwise matrix not invertible / degenerate
   if (Mmod == "M1") {
     M <- matrix(
       c(0.9, 0, 1, 0),
@@ -146,7 +147,7 @@ logISE <- function(
   fdens,
   kernel = c("Wishart", "smlnorm", "smnorm"),
   tol = 1e-3,
-  lb = 0,
+  lb = 1e-5,
   ub = Inf,
   neval = 1e6L,
   method = c("suave", "hcubature"),
@@ -328,7 +329,8 @@ res <- foreach::foreach(
           xs <- simu_rWAR(
             n = nobs[i],
             Mmod = Mmod[j],
-            Smod = Smod[k]
+            Smod = Smod[k],
+            K = 2 # degrees of freedom must be at least d
           )
           
           for (l in seq_along(kernels)) {
@@ -336,7 +338,7 @@ res <- foreach::foreach(
             band <- ksm:::bandwidth_optim(
               x = xs,
               criterion = "lscv",
-              h = ceiling(nobs[i]),
+              h = ceiling(nobs[i]^0.25), # adjustment for serial dependence
               kernel = kernels[l]
             )
             
@@ -348,7 +350,7 @@ res <- foreach::foreach(
                   simu_fdens(x, model = model, 2)
                 },
                 kernel = kernels[k],
-                lb = 0,
+                lb = 1e-5, # avoid problems with matrices nearly non PSD, which are caught by sensitive Cpp routine
                 ub = Inf,
                 tol = 1e-3
               ),
@@ -449,4 +451,5 @@ summary_output_file <- file.path(path, "summary_dep.csv")
 write.csv(summary_results, summary_output_file, row.names = FALSE)
 
 print("Summary results saved to summary_dep.csv")
+
 

@@ -234,7 +234,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "60:00:00",
+  walltime = "0:30:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
@@ -244,9 +244,9 @@ resources_list <- list(
 ##############################
 
 RR <- 1:128 # replications
-nobs <- c(125L, 250L)
-Mmod <- c("M1", "M2", "M3")
-Smod <- c("S1", "S2", "S3")
+nobs <- c(125L)
+Mmod <- c("M1")
+Smod <- c("S1")
 kernels <- c("Wishart", "smlnorm")
 
 ###############
@@ -334,7 +334,7 @@ res <- foreach::foreach(
           for (l in seq_along(kernels)) {
             start_time <- Sys.time()
             band <- ksm:::bandwidth_optim(
-              data = xs,
+              x = xs,
               criterion = "lscv",
               h = ceiling(nobs[i]),
               kernel = kernels[l]

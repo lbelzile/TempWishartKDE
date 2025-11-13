@@ -1,14 +1,76 @@
-require(ksm)
+# Simulation study (under mixing)
+
+require("cubature")           # adaptive multidimensional integration (e.g., Cuhre)
+require("doFuture")           # registers future-based backends for foreach (%dopar%)
+require("fs")                 # cross-platform filesystem ops (paths, files, dirs)
+require("future.batchtools")  # runs futures via batchtools (Slurm templates/resources)
+require("ksm")                # SPD kernel density tools (kdens_symmat, integrate_spd, bandwidth_optim)
+require("parallel")           # base R parallelism (PSOCK clusters, detectCores)
+
+# Define the list of libraries to load on each cluster node
 
 libraries_to_load <- c(
   "cubature",
   "doFuture",
-  "future",
+  "fs",
   "future.batchtools",
-  "ksm",
   "parallel"
 )
 
+# Define the list of variables/functions to export to the worker nodes
+
+vars_to_export <- c(
+  "combo",
+  "cores_per_node",
+  "criteria",
+  "ISE",
+  "IAE",
+  "kernels",
+  "libraries_to_load",
+  "logISE",
+  "Mmod",
+  "models",
+  "nobs",
+  "path",
+  "replication",
+  "resources_list",
+  "RR",
+  "setup_parallel_cluster",
+  "simu_rWAR",
+  "Smod",
+  "timing"
+)
+
+# Sets up a parallel cluster, loads necessary libraries, and exports required variables globally
+
+setup_parallel_cluster <- function() {
+  num_cores <<- detectCores()
+  cl <<- makeCluster(num_cores)
+  
+  # Export the list of libraries to the worker nodes
+  clusterExport(cl, varlist = "libraries_to_load")
+  
+  # Load necessary libraries on each cluster node
+  invisible(clusterEvalQ(cl, {
+    lapply(libraries_to_load, library, character.only = TRUE)
+  }))
+  
+  # Export all necessary objects, functions, and parameters to the worker nodes
+  clusterExport(cl, varlist = vars_to_export)
+  
+  return(cl) # Return the cluster object
+}
+
+# Initialize all variables in the list as NULL except vars_to_export and setup_parallel_cluster
+
+invisible(
+  lapply(
+    vars_to_export[
+      !(vars_to_export %in% c("vars_to_export", "setup_parallel_cluster"))
+    ],
+    function(x) assign(x, NULL, envir = .GlobalEnv)
+  )
+)
 
 #' Simulation study serial dependence simulation from WAR(1)
 #' @param n sample size
@@ -16,6 +78,7 @@ libraries_to_load <- c(
 #' @param Smod covariance matrix of VAR components
 #' @param K degrees of freedom
 #' @return a cube of dimension 2 by 2 by \code{n}.
+
 simu_rWAR <- function(
   n,
   Mmod = c("M1", "M2", "M3"),
@@ -63,6 +126,7 @@ simu_rWAR <- function(
     K = K
   )
 }
+
 #' Integrated squared error of kernel density estimator for symmetric matrices
 #'
 #' Given a sample \code{x} from a target density, and the optimal bandwidth, compute the integrated squared error via numerical integration.
@@ -75,6 +139,7 @@ simu_rWAR <- function(
 #' @param ub upper bound for integration range of eigenvalues
 #' @param return double with value of the integrated squared error
 #' @param ... additional parameters, currently ignored
+
 logISE <- function(
   x,
   bandwidth,
@@ -153,45 +218,6 @@ logISE <- function(
   return(log(result$integral))
 }
 
-
-vars_to_export <- c(
-  "logISE",
-  "simu_rWAR"
-  #TODO figure out what needs to be added here, beyond locally defined functions
-)
-
-# Sets up a parallel cluster, loads necessary libraries, and exports required variables globally
-
-setup_parallel_cluster <- function() {
-  num_cores <<- parallel::detectCores() - 1
-  cl <<- parallel::makeCluster(num_cores)
-
-  # Export the list of libraries to the worker nodes
-  parallel::clusterExport(cl, varlist = "libraries_to_load")
-
-  # Load necessary libraries on each cluster node
-  invisible(parallel::clusterEvalQ(cl, {
-    lapply(libraries_to_load, library, character.only = TRUE)
-  }))
-
-  # Export all necessary objects, functions, and parameters to the worker nodes
-  list_vars <- ls()
-  parallel::clusterExport(cl, varlist = ls())
-
-  return(cl) # Return the cluster object
-}
-
-# Initialize all variables in the list as NULL except vars_to_export and setup_parallel_cluster
-
-invisible(
-  lapply(
-    vars_to_export[
-      !(vars_to_export %in% c("vars_to_export", "setup_parallel_cluster"))
-    ],
-    function(x) assign(x, NULL, envir = .GlobalEnv)
-  )
-)
-
 ##################
 ## Set the path ##
 ##################
@@ -199,17 +225,11 @@ invisible(
 path <- getwd()
 # setwd(path)
 
-################
-## Parameters ##
-################
-
-# Variables for the simulation
-nrep <- 1000L
-
-
 ##############################
 ## Parallelization on nodes ##
 ##############################
+
+cores_per_node <- 64 # number of cores for each node in the super-computer
 
 resources_list <- list(
   cpus_per_task = cores_per_node,
@@ -219,21 +239,21 @@ resources_list <- list(
   # Omit 'partition' to let SLURM choose
 )
 
+##############################
+## Hyper-parameters         ##
+##############################
 
-# Variables for the simulation
-nrep <- 1000L
-cores_per_node <- 63 # number of cores for each node in the super-computer
+RR <- 1:128 # replications
 nobs <- c(125L, 250L)
 Mmod <- c("M1", "M2", "M3")
 Smod <- c("S1", "S2", "S3")
 kernels <- c("Wishart", "smlnorm")
 
+###############
+## Main code ##
+###############
 
-###############################
-## Main code (exact version) ##
-###############################
-
-.libPaths("~/R/library")
+.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))
 
 # Disable the check for random number generation misuse in doFuture
 options(doFuture.rng.onMisuse = "ignore")
@@ -265,41 +285,52 @@ raw_results <- data.frame(
 # Capture the start time
 start_time <- Sys.time()
 
-# Parallel loop over the replications (RR), each node processes one set of RR values
+# Split RR into node-sized blocks
+RR_blocks <- split(RR, ceiling(seq_along(RR) / cores_per_node))
+
+# For each over blocks (one Slurm job per block); inside each, parallelize reps across node cores
 res <- foreach::foreach(
-  r = RR,
+  block = RR_blocks,
   .combine = "rbind",
   .export = vars_to_export,
   .packages = libraries_to_load
-) %dopar%
-  {
-    # Set a unique seed for each node (replication)
-    set.seed(r)
-    nobs <- c(125L, 250L)
-    Mmod <- c("M1", "M2", "M3")
-    Smod <- c("S1", "S2", "S3")
-    kernels <- c("Wishart", "smlnorm")
-
-    # Set library paths within each worker node
-    .libPaths("~/R/library")
-
-    local_raw_results <- data.frame(
-      nobs = integer(),
-      Mmod = integer(),
-      Smod = integer(),
-      kernel = character(),
-      logISE = numeric(),
-      bandwidth = numeric(),
-      timing = numeric()
+) %dopar% {
+  
+  # spin up a per-node PSOCK cluster
+  cl <- setup_parallel_cluster()
+  
+  block_results <- data.frame(
+    nobs = integer(),
+    Mmod = integer(),
+    Smod = integer(),
+    kernel = character(),
+    logISE = numeric(),
+    bandwidth = numeric(),
+    timing = numeric()
+  )
+  
+  # each r in this block runs in parallel across the node's cores
+  r_list <- parallel::parLapply(cl, X = block, fun = function(r_local) {
+    set.seed(r_local)
+    
+    out_rows_all <- vector(
+      "list",
+      length(nobs) * length(Mmod) * length(Smod)
     )
+    idx_out <- 0L
+    
     for (i in seq_along(nobs)) {
       for (j in seq_along(Mmod)) {
         for (k in seq_along(Smod)) {
+          
+          local_rows <- vector("list", length(kernels))
+          
           xs <- simu_rWAR(
             n = nobs[i],
             Mmod = Mmod[j],
             Smod = Smod[k]
           )
+          
           for (l in seq_along(kernels)) {
             start_time <- Sys.time()
             band <- ksm:::bandwidth_optim(
@@ -308,7 +339,7 @@ res <- foreach::foreach(
               h = ceiling(nobs[i]),
               kernel = kernels[l]
             )
-
+            
             log_ISE <- try(
               logISE(
                 x = xs,
@@ -331,26 +362,34 @@ res <- foreach::foreach(
               start_time,
               units = "seconds"
             ))
-            raw_results <- rbind(
-              raw_results,
-              data.frame(
-                nobs = nobs[i],
-                Mmod = j,
-                Smod = k,
-                kernel = kernels[l],
-                logISE = log_ISE,
-                bandwidth = band,
-                timing = timing
-              )
+            
+            local_rows[[l]] <- data.frame(
+              nobs = nobs[i],
+              Mmod = j,
+              Smod = k,
+              kernel = kernels[l],
+              logISE = log_ISE,
+              bandwidth = band,
+              timing = timing
             )
           }
+          
+          idx_out <- idx_out + 1L
+          out_rows_all[[idx_out]] <- do.call(rbind, local_rows)
         }
       }
     }
-
-    # Return the raw results for this replication
-    return(local_raw_results)
-  }
+    
+    do.call(rbind, out_rows_all)
+  })
+  
+  block_results <- rbind(block_results, do.call(rbind, r_list))
+  
+  # tear down the per-node cluster
+  try(parallel::stopCluster(cl), silent = TRUE)
+  
+  block_results
+}
 
 # Combine results from all nodes
 raw_results <- res
@@ -371,3 +410,43 @@ raw_output_file <- file.path(path, "raw_ISE_dep.csv")
 write.csv(raw_results, raw_output_file, row.names = FALSE)
 
 print("Raw results saved to raw_ISE_dep.csv")
+
+#########################
+## Process the results ##
+#########################
+
+# Build a summary table by (nobs, Mmod, Smod, kernel)
+
+# Guard against accidental factor coercion
+raw_results$kernel <- as.character(raw_results$kernel)
+
+# Split by grouping keys
+.grp <- interaction(raw_results$nobs, raw_results$Mmod,
+                    raw_results$Smod, raw_results$kernel,
+                    drop = TRUE)
+
+summ_list <- lapply(split(raw_results, .grp), function(df) {
+  data.frame(
+    nobs   = df$nobs[1],
+    Mmod   = df$Mmod[1],
+    Smod   = df$Smod[1],
+    kernel = df$kernel[1],
+    # ISE stats
+    mean_ISE    = mean(df$logISE, na.rm = TRUE),
+    sd_ISE      = sd(df$logISE, na.rm = TRUE),
+    median_ISE  = median(df$logISE, na.rm = TRUE),
+    IQR_ISE     = IQR(df$logISE, na.rm = TRUE),
+    mean_time_min = mean(df$timing, na.rm = TRUE) / 60,
+    stringsAsFactors = FALSE
+  )
+})
+
+summary_results <- do.call(rbind, summ_list)
+row.names(summary_results) <- NULL
+
+# Save the summary to CSV next to the raw file
+summary_output_file <- file.path(path, "summary_dep.csv")
+write.csv(summary_results, summary_output_file, row.names = FALSE)
+
+print("Summary results saved to summary_dep.csv")
+

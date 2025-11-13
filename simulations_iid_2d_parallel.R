@@ -74,7 +74,7 @@ invisible(
 
 # Hyper-parameters
 
-nobs <- c(250L)
+nobs <- c(125L)
 models <- 1:6
 combo <- 1:5
 kernels <- c("smnorm", "smlnorm", "Wishart")
@@ -172,9 +172,9 @@ resources_list <- list(
   # Omit 'partition' to let SLURM choose
 )
 
-###############################
-## Main code (exact version) ##
-###############################
+###############
+## Main code ##
+###############
 
 .libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))
 

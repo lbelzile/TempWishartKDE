@@ -29,6 +29,7 @@ vars_to_export <- c(
   "libraries_to_load",
   "logISE",
   "Mmod",
+  "K",
   "models",
   "nobs",
   "path",
@@ -37,6 +38,7 @@ vars_to_export <- c(
   "RR",
   "setup_parallel_cluster",
   "simu_rWAR",
+  "simu_fdens_WAR",
   "Smod",
   "timing"
 )
@@ -78,12 +80,11 @@ invisible(
 #' @param Smod covariance matrix of VAR components
 #' @param K degrees of freedom
 #' @return a cube of dimension 2 by 2 by \code{n}.
-
 simu_rWAR <- function(
-  n,
-  Mmod = c("M1", "M2", "M3"),
-  Smod = c("S1", "S2", "S3"),
-  K = 2L
+    n,
+    Mmod = c("M1", "M2", "M3"),
+    Smod = c("S1", "S2", "S3"),
+    K = 2L
 ) {
   Mmod <- match.arg(Mmod)
   Smod <- match.arg(Smod)
@@ -128,6 +129,52 @@ simu_rWAR <- function(
   )
 }
 
+
+simu_fdens_WAR <- function(
+    x,
+    Mmod = c("M1", "M2", "M3"),
+    Smod = c("S1", "S2", "S3"),
+    K = 2L
+) {
+  Mmod <- match.arg(Mmod)
+  Smod <- match.arg(Smod)
+  n <- as.integer(n)
+  K <- as.integer(K)
+  stopifnot(n >= 1, K >= 2) # otherwise matrix not invertible / degenerate
+  if (Mmod == "M1") {
+    M <- matrix(
+      c(0.9, 0, 1, 0),
+      byrow = TRUE,
+      nrow = 2,
+      ncol = 2
+    )
+  } else if (Mmod == "M2") {
+    M <- matrix(
+      c(0.3, -0.3, -0.3, 0.3),
+      byrow = TRUE,
+      nrow = 2,
+      ncol = 2
+    )
+  } else {
+    M <- diag(rep(0.5, 2))
+  }
+  if (Smod == "S1") {
+    S <- diag(2)
+  } else if (Smod == "S2") {
+    S <- matrix(0.5, 2, 2) +
+      diag(rep(0.5, 2))
+  } else {
+    S <- matrix(
+      c(1, 0.9, 0.9, 1),
+      byrow = TRUE,
+      nrow = 2,
+      ncol = 2
+    )
+  }
+  
+  Sigma_inf <- ksm::Riccati(M = M, S = S)$solution
+  ksm::dWishart(x, df = K, S = Sigma_inf, log = FALSE)
+}
 #' Integrated squared error of kernel density estimator for symmetric matrices
 #'
 #' Given a sample \code{x} from a target density, and the optimal bandwidth, compute the integrated squared error via numerical integration.
@@ -142,16 +189,16 @@ simu_rWAR <- function(
 #' @param ... additional parameters, currently ignored
 
 logISE <- function(
-  x,
-  bandwidth,
-  fdens,
-  kernel = c("Wishart", "smlnorm", "smnorm"),
-  tol = 1e-3,
-  lb = 1e-5,
-  ub = Inf,
-  neval = 1e6L,
-  method = c("suave", "hcubature"),
-  ...
+    x,
+    bandwidth,
+    fdens,
+    kernel = c("Wishart", "smlnorm", "smnorm"),
+    tol = 1e-3,
+    lb = 1e-5,
+    ub = Inf,
+    neval = 1e6L,
+    method = c("suave", "hcubature"),
+    ...
 ) {
   method <- match.arg(
     method[1],
@@ -182,7 +229,7 @@ logISE <- function(
         24
     }
     S <- array(S, dim = c(nrow(S), ncol(S), 1))
-
+    
     # Compute the squared difference between the kernel and the target density
     diff_squared <- (ksm::kdens_symmat(
       x = S,
@@ -192,7 +239,7 @@ logISE <- function(
       log = FALSE
     ) -
       fdens(S))^2
-
+    
     # Return the product of diff_squared and the Jacobian factor
     return(diff_squared * jacobian_value)
   }
@@ -208,12 +255,12 @@ logISE <- function(
     f = integrand,
     lower = lower_limit,
     upper = upper_limit,
-    method = "suave",
+    method = method,
     relTol = 1e-3,
     maxEval = neval,
     kernel = kernel
   )
-
+  
   # print(result)
   # Return the result of the integral
   return(log(result$integral))
@@ -249,6 +296,7 @@ nobs <- c(125L)
 Mmod <- c("M1")
 Smod <- c("S1")
 kernels <- c("Wishart", "smlnorm")
+K <- 4
 
 ###############
 ## Main code ##
@@ -330,9 +378,8 @@ res <- foreach::foreach(
             n = nobs[i],
             Mmod = Mmod[j],
             Smod = Smod[k],
-            K = 2 # degrees of freedom must be at least d
+            K = K # degrees of freedom must be at least d
           )
-          
           for (l in seq_along(kernels)) {
             start_time <- Sys.time()
             band <- ksm:::bandwidth_optim(
@@ -346,13 +393,16 @@ res <- foreach::foreach(
               logISE(
                 x = xs,
                 bandwidth = band,
-                fdens = function(x) {
-                  simu_fdens(x, model = model, 2)
-                },
+                fdens = function(x){
+                  simu_fdens_WAR(x = x, 
+                  Mmod = Mmod[j],
+                  Smod = Smod[k],
+                  K = K)},
                 kernel = kernels[k],
                 lb = 1e-5, # avoid problems with matrices nearly non PSD, which are caught by sensitive Cpp routine
                 ub = Inf,
                 tol = 1e-3
+                method = "hcubature",
               ),
               silent = TRUE
             )
@@ -362,7 +412,7 @@ res <- foreach::foreach(
             timing <- as.numeric(difftime(
               Sys.time(),
               start_time,
-              units = "seconds"
+              units = "secs"
             ))
             
             local_rows[[l]] <- data.frame(
@@ -451,5 +501,4 @@ summary_output_file <- file.path(path, "summary_dep.csv")
 write.csv(summary_results, summary_output_file, row.names = FALSE)
 
 print("Summary results saved to summary_dep.csv")
-
 

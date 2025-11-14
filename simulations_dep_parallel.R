@@ -282,7 +282,7 @@ cores_per_node <- 64 # number of cores for each node in the super-computer
 resources_list <- list(
   cpus_per_task = cores_per_node,
   mem = "240G",
-  walltime = "0:30:00",
+  walltime = "0:05:00",
   nodes = 1
   # Omit 'partition' to let SLURM choose
 )
@@ -401,10 +401,10 @@ res <- foreach::foreach(
                 kernel = kernels[k],
                 lb = 1e-5, # avoid problems with matrices nearly non PSD, which are caught by sensitive Cpp routine
                 ub = Inf,
-                tol = 1e-3
-                method = "hcubature",
+                tol = 1e-3,
+                method = "hcubature"
               ),
-              silent = TRUE
+              silent = FALSE
             )
             if (inherits(log_ISE, "try-error")) {
               log_ISE <- NA

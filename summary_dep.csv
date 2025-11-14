@@ -1,0 +1,3 @@
+"nobs","Mmod","Smod","kernel","mean_ISE","sd_ISE","median_ISE","IQR_ISE","mean_time_min"
+125,1,1,"smlnorm",NA,NA,NA,NA,0.000132596213370562
+125,1,1,"Wishart",NA,NA,NA,NA,0.0166074979739885
